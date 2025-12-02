@@ -30,7 +30,7 @@ const FAQS = [
   { q: "Is this updated for the 2026 test?", a: "Yes, we use the latest official USCIS question bank suitable for the 2026 examination cycle." },
   { q: "Is it really free?", a: "Yes, the simulation is 100% free. We believe education should be accessible to everyone." },
   { q: "How does the voice recognition work?", a: "We use your browser's advanced speech API to listen to your answer and check it against the official correct answers." },
-  { q: "Can I use it on my phone?", a: "Absolutely! USCivicsPro is designed to work perfectly on iPhone and Android." }
+  { q: "Can I use it on my phone?", a: "Absolutely! USNTEducationQuiz is designed to work perfectly on iPhone and Android." }
 ];
 
 // --- COMPONENTE PRINCIPALE ---
@@ -38,17 +38,13 @@ function App() {
   const [step, setStep] = useState<'landing' | 'register' | 'quiz' | 'result'>('landing');
   const [user, setUser] = useState<UserData>({ name: '', email: '' });
   
-  // Stato per le domande del gioco corrente
   const [gameQuestions, setGameQuestions] = useState<Question[]>([]);
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [inputAnswer, setInputAnswer] = useState('');
   const [isListening, setIsListening] = useState(false);
-  
-  // Stato per l'apertura delle FAQ
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
 
-  // Inizializza il gioco prendendo 20 domande a caso
   const initGame = () => {
     const shuffled = [...REAL_QUESTIONS].sort(() => 0.5 - Math.random());
     setGameQuestions(shuffled.slice(0, 20));
@@ -106,14 +102,14 @@ function App() {
 
   // Funzione Share (Nativa o Clipboard)
   const handleShare = async () => {
-    const text = `I just scored ${score}/20 on the US Citizenship Practice Test! 🇺🇸 Can you beat me? Try it at uscivicspro.com`;
+    const text = `I just scored ${score}/20 on the US Citizenship Practice Test! 🇺🇸 Can you beat me? Try it at quiz.usnteducation.com`;
     
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'USCivicsPro Result',
+          title: 'USNTEducationQuiz Result',
           text: text,
-          url: 'https://www.uscivicspro.com',
+          url: 'https://quiz.usnteducation.com',
         });
       } catch (err) {
         console.log('Error sharing', err);
@@ -134,7 +130,8 @@ function App() {
         <header className="p-6 flex justify-between items-center border-b border-slate-800 sticky top-0 bg-slate-950/90 backdrop-blur z-10">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-8 h-8 text-blue-500" />
-            <span className="text-xl font-bold tracking-tight">USCivics<span className="text-blue-500">Pro</span></span>
+            {/* Nuovo Branding: USNTEducationQuiz */}
+            <span className="text-xl font-bold tracking-tight">USNT<span className="text-blue-500">EducationQuiz</span></span>
           </div>
           <button onClick={() => setStep('register')} className="text-sm font-semibold text-slate-300 hover:text-white transition">Login</button>
         </header>
@@ -254,7 +251,7 @@ function App() {
         </section>
         
         <footer className="py-8 text-center text-slate-600 text-sm border-t border-slate-800">
-          © 2025 USCivicsPro. All rights reserved.
+          © 2025 USNTEducationQuiz. All rights reserved.
         </footer>
       </div>
     );
@@ -293,7 +290,7 @@ function App() {
               onClick={async () => {
                 if(user.email) {
                     try {
-                        // 1. Controlla se l'utente esiste già
+                        // 1. Controlla se l'utente esiste già (No Duplicati)
                         const q = query(collection(db, "leads"), where("email", "==", user.email));
                         const querySnapshot = await getDocs(q);
 
@@ -303,7 +300,8 @@ function App() {
                                 name: user.name || "Anonymous",
                                 email: user.email,
                                 date: new Date().toISOString(),
-                                source: "USCivicsPro Landing"
+                                // Nuova Source
+                                source: "USNTEducationQuiz Landing" 
                             });
                         } else {
                             console.log("Utente già registrato, skip salvataggio.");
@@ -332,7 +330,7 @@ function App() {
     );
   }
 
-  // 3. QUIZ INTERFACE
+  // 3. QUIZ INTERFACE (Non modificato)
   if (step === 'quiz') {
     if (gameQuestions.length === 0) return <div className="text-white text-center mt-20">Loading questions...</div>;
 
@@ -390,9 +388,9 @@ function App() {
   if (step === 'result') {
     const passed = score >= 12; 
     
-    // Link mailto per inviarsi il risultato da soli (Budget Zero Solution)
-    const mailSubject = "My USCivicsPro Test Results";
-    const mailBody = `I just practiced for the US Citizenship Test on USCivicsPro.\n\nMy Score: ${score}/20\nResult: ${passed ? 'PASSED' : 'FAILED'}\n\nStudy hard!`;
+    // Link mailto con nuovo nome
+    const mailSubject = "My USNTEducationQuiz Test Results";
+    const mailBody = `I just practiced for the US Citizenship Test on USNTEducationQuiz.\n\nMy Score: ${score}/20\nResult: ${passed ? 'PASSED' : 'FAILED'}\n\nStudy hard!`;
     const mailToLink = `mailto:${user.email}?subject=${encodeURIComponent(mailSubject)}&body=${encodeURIComponent(mailBody)}`;
 
     return (
