@@ -1,7 +1,8 @@
-import { db } from './firebaseConfig';
-import { collection, addDoc } from 'firebase/firestore';
 import { useState, useEffect } from 'react';
-import { Mic, CheckCircle, BookOpen, Star, ChevronRight, Share2, Lock, ShieldCheck } from 'lucide-react';
+import { Mic, CheckCircle, BookOpen, Star, ChevronRight, Share2, Lock, ShieldCheck, Mail, ChevronDown, ChevronUp } from 'lucide-react';
+// Importiamo Firebase
+import { db } from './firebaseConfig';
+import { collection, addDoc, query, where, getDocs } from 'firebase/firestore'; 
 // Importiamo le domande vere
 import { REAL_QUESTIONS } from './questions';
 
@@ -17,6 +18,21 @@ interface UserData {
   email: string;
 }
 
+// --- DATI TESTIMONIANZE (MOCK) ---
+const TESTIMONIALS = [
+  { id: 1, name: "Maria Garcia", text: "I was so nervous about the speaking part. This app helped me practice my pronunciation correctly. I passed!", stars: 5 },
+  { id: 2, name: "Ahmed Khan", text: "The questions are exactly like the real test. The voice recognition is a game changer.", stars: 5 },
+  { id: 3, name: "Elena Rossi", text: "Simple and effective. I studied for 3 days using this and got 100%.", stars: 5 }
+];
+
+// --- DATI FAQ ---
+const FAQS = [
+  { q: "Is this updated for the 2026 test?", a: "Yes, we use the latest official USCIS question bank suitable for the 2026 examination cycle." },
+  { q: "Is it really free?", a: "Yes, the simulation is 100% free. We believe education should be accessible to everyone." },
+  { q: "How does the voice recognition work?", a: "We use your browser's advanced speech API to listen to your answer and check it against the official correct answers." },
+  { q: "Can I use it on my phone?", a: "Absolutely! USCivicsPro is designed to work perfectly on iPhone and Android." }
+];
+
 // --- COMPONENTE PRINCIPALE ---
 function App() {
   const [step, setStep] = useState<'landing' | 'register' | 'quiz' | 'result'>('landing');
@@ -24,17 +40,25 @@ function App() {
   
   // Stato per le domande del gioco corrente
   const [gameQuestions, setGameQuestions] = useState<Question[]>([]);
-  
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [inputAnswer, setInputAnswer] = useState('');
   const [isListening, setIsListening] = useState(false);
+  
+  // Stato per l'apertura delle FAQ
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
 
   // Inizializza il gioco prendendo 20 domande a caso
-  useEffect(() => {
-    // Mescola l'array delle domande vere e prendine 20
+  const initGame = () => {
     const shuffled = [...REAL_QUESTIONS].sort(() => 0.5 - Math.random());
     setGameQuestions(shuffled.slice(0, 20));
+    setScore(0);
+    setCurrentQIndex(0);
+    setInputAnswer('');
+  };
+
+  useEffect(() => {
+    initGame();
   }, []);
 
   // Gestione Riconoscimento Vocale
@@ -61,14 +85,13 @@ function App() {
 
       recognition.start();
     } else {
-      alert("Speech recognition not supported in this browser. Please use Chrome.");
+      alert("Speech recognition not supported in this browser. Please use Chrome or Safari.");
     }
   };
 
   // Gestione Risposte
   const handleNextQuestion = () => {
     const currentQ = gameQuestions[currentQIndex];
-    // Controllo risposta (contiene una delle risposte corrette?)
     const isCorrect = currentQ.answers.some(ans => inputAnswer.toLowerCase().includes(ans.toLowerCase()));
     
     if (isCorrect) setScore(score + 1);
@@ -81,6 +104,26 @@ function App() {
     }
   };
 
+  // Funzione Share (Nativa o Clipboard)
+  const handleShare = async () => {
+    const text = `I just scored ${score}/20 on the US Citizenship Practice Test! 🇺🇸 Can you beat me? Try it at uscivicspro.com`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'USCivicsPro Result',
+          text: text,
+          url: 'https://www.uscivicspro.com',
+        });
+      } catch (err) {
+        console.log('Error sharing', err);
+      }
+    } else {
+      navigator.clipboard.writeText(text);
+      alert("Result copied to clipboard!");
+    }
+  };
+
   // --- UI COMPONENTS ---
 
   // 1. LANDING PAGE
@@ -88,7 +131,7 @@ function App() {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-blue-500 selection:text-white">
         {/* Header */}
-        <header className="p-6 flex justify-between items-center border-b border-slate-800">
+        <header className="p-6 flex justify-between items-center border-b border-slate-800 sticky top-0 bg-slate-950/90 backdrop-blur z-10">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-8 h-8 text-blue-500" />
             <span className="text-xl font-bold tracking-tight">USCivics<span className="text-blue-500">Pro</span></span>
@@ -129,8 +172,26 @@ function App() {
           </div>
         </main>
 
+        {/* Testimonials Section */}
+        <section className="py-16 bg-slate-900/50">
+            <div className="max-w-6xl mx-auto px-6">
+                <h2 className="text-3xl font-bold text-center mb-12">Success Stories</h2>
+                <div className="grid md:grid-cols-3 gap-8">
+                    {TESTIMONIALS.map((t) => (
+                        <div key={t.id} className="bg-slate-950 border border-slate-800 p-6 rounded-2xl">
+                            <div className="flex gap-1 mb-4">
+                                {[...Array(t.stars)].map((_, i) => <Star key={i} className="w-4 h-4 fill-yellow-500 text-yellow-500" />)}
+                            </div>
+                            <p className="text-slate-300 mb-4 italic">"{t.text}"</p>
+                            <p className="font-bold text-white">- {t.name}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </section>
+
         {/* Features Preview */}
-        <section className="border-t border-slate-800 bg-slate-900/50 py-16">
+        <section className="py-16 border-t border-slate-800">
           <div className="max-w-4xl mx-auto px-6 grid md:grid-cols-2 gap-12 items-center">
             <div className="space-y-6">
               <h3 className="text-2xl font-bold">How it works</h3>
@@ -150,13 +211,12 @@ function App() {
                 ))}
               </ul>
             </div>
-            {/* Mockup Phone */}
-            <div className="relative mx-auto border-gray-800 dark:border-gray-800 bg-gray-800 border-[14px] rounded-[2.5rem] h-[600px] w-[300px] shadow-xl">
-                <div className="h-[32px] w-[3px] bg-gray-800 absolute -left-[17px] top-[72px] rounded-l-lg"></div>
+            <div className="relative mx-auto border-gray-800 dark:border-gray-800 bg-gray-800 border-[14px] rounded-[2.5rem] h-[500px] w-[280px] shadow-xl">
+                 <div className="h-[32px] w-[3px] bg-gray-800 absolute -left-[17px] top-[72px] rounded-l-lg"></div>
                 <div className="h-[46px] w-[3px] bg-gray-800 absolute -left-[17px] top-[124px] rounded-l-lg"></div>
                 <div className="h-[46px] w-[3px] bg-gray-800 absolute -left-[17px] top-[178px] rounded-l-lg"></div>
                 <div className="h-[64px] w-[3px] bg-gray-800 absolute -right-[17px] top-[142px] rounded-r-lg"></div>
-                <div className="rounded-[2rem] overflow-hidden w-[272px] h-[572px] bg-slate-950 flex flex-col items-center justify-center p-4">
+                <div className="rounded-[2rem] overflow-hidden w-[252px] h-[472px] bg-slate-950 flex flex-col items-center justify-center p-4">
                     <p className="text-center text-slate-400 text-sm mb-4">Question 4/20</p>
                     <p className="text-center font-bold text-lg mb-8">What is an amendment?</p>
                     <div className="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center mb-4">
@@ -166,6 +226,31 @@ function App() {
                 </div>
             </div>
           </div>
+        </section>
+
+        {/* FAQ Section */}
+        <section className="py-16 bg-slate-900/50">
+            <div className="max-w-3xl mx-auto px-6">
+                <h2 className="text-3xl font-bold text-center mb-12">Frequently Asked Questions</h2>
+                <div className="space-y-4">
+                    {FAQS.map((faq, i) => (
+                        <div key={i} className="border border-slate-800 rounded-lg overflow-hidden">
+                            <button 
+                                onClick={() => setOpenFaqIndex(openFaqIndex === i ? null : i)}
+                                className="w-full flex justify-between items-center p-4 bg-slate-950 hover:bg-slate-900 transition text-left"
+                            >
+                                <span className="font-semibold">{faq.q}</span>
+                                {openFaqIndex === i ? <ChevronUp className="w-5 h-5 text-blue-500"/> : <ChevronDown className="w-5 h-5 text-slate-500"/>}
+                            </button>
+                            {openFaqIndex === i && (
+                                <div className="p-4 bg-slate-900 text-slate-400 text-sm">
+                                    {faq.a}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
         </section>
         
         <footer className="py-8 text-center text-slate-600 text-sm border-t border-slate-800">
@@ -205,35 +290,41 @@ function App() {
               />
             </div>
             <button 
-            onClick={async () => {
-              // Controllo se l'utente ha scritto qualcosa
-              if(user.email) {
-                  try {
-                      // --- QUI PARTE LA CHIAMATA A GOOGLE FIREBASE ---
-                      await addDoc(collection(db, "leads"), {
-                          name: user.name || "Anonymous", // Salva il nome (o Anonymous se vuoto)
-                          email: user.email,
-                          date: new Date().toISOString(),
-                          source: "USCivicsPro Landing"
-                      });
-                      // -----------------------------------------------
+              onClick={async () => {
+                if(user.email) {
+                    try {
+                        // 1. Controlla se l'utente esiste già
+                        const q = query(collection(db, "leads"), where("email", "==", user.email));
+                        const querySnapshot = await getDocs(q);
 
-                      // Salva nel browser e vai al quiz
-                      localStorage.setItem('uscivicspro_user', JSON.stringify(user));
-                      setStep('quiz');
-                  } catch (e) {
-                      console.error("Errore salvataggio:", e);
-                      // Se Firebase fallisce (es. adblock), facciamo giocare l'utente lo stesso
-                      setStep('quiz'); 
-                  }
-              } else {
-                  alert("Please enter your email");
-              }
-            }}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors mt-2"
-          >
-            Start Practice Test
-          </button>
+                        if (querySnapshot.empty) {
+                             // 2. Se NON esiste, salvalo
+                             await addDoc(collection(db, "leads"), {
+                                name: user.name || "Anonymous",
+                                email: user.email,
+                                date: new Date().toISOString(),
+                                source: "USCivicsPro Landing"
+                            });
+                        } else {
+                            console.log("Utente già registrato, skip salvataggio.");
+                        }
+
+                        // 3. Salva in locale e procedi
+                        localStorage.setItem('uscivicspro_user', JSON.stringify(user));
+                        setStep('quiz');
+                    } catch (e) {
+                        console.error("Errore Firebase:", e);
+                        // In caso di errore (es. adblock), procedi comunque
+                        setStep('quiz'); 
+                    }
+                } else {
+                    alert("Please enter your email");
+                }
+              }}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors mt-2"
+            >
+              Start Practice Test
+            </button>
             <p className="text-xs text-center text-slate-600 mt-4">We respect your privacy. No spam.</p>
           </div>
         </div>
@@ -243,8 +334,7 @@ function App() {
 
   // 3. QUIZ INTERFACE
   if (step === 'quiz') {
-    // Se non ci sono domande (caricamento), non mostrare nulla o un loader
-    if (gameQuestions.length === 0) return <div>Loading questions...</div>;
+    if (gameQuestions.length === 0) return <div className="text-white text-center mt-20">Loading questions...</div>;
 
     const q = gameQuestions[currentQIndex];
     return (
@@ -298,7 +388,13 @@ function App() {
 
   // 4. RESULTS
   if (step === 'result') {
-    const passed = score >= 12; // Soglia per passare (60% di 20)
+    const passed = score >= 12; 
+    
+    // Link mailto per inviarsi il risultato da soli (Budget Zero Solution)
+    const mailSubject = "My USCivicsPro Test Results";
+    const mailBody = `I just practiced for the US Citizenship Test on USCivicsPro.\n\nMy Score: ${score}/20\nResult: ${passed ? 'PASSED' : 'FAILED'}\n\nStudy hard!`;
+    const mailToLink = `mailto:${user.email}?subject=${encodeURIComponent(mailSubject)}&body=${encodeURIComponent(mailBody)}`;
+
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
         <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl w-full max-w-lg text-center shadow-2xl">
@@ -310,9 +406,21 @@ function App() {
           <p className="text-slate-400 mb-8">You scored <span className="text-white font-bold text-xl">{score}</span> out of {gameQuestions.length}</p>
 
           <div className="grid gap-4">
-             <button className="flex items-center justify-center gap-2 w-full bg-slate-800 hover:bg-slate-700 text-white font-semibold py-3 rounded-lg transition-colors border border-slate-700">
+             {/* Share Button (Nativo o Clipboard) */}
+             <button 
+                onClick={handleShare}
+                className="flex items-center justify-center gap-2 w-full bg-slate-800 hover:bg-slate-700 text-white font-semibold py-3 rounded-lg transition-colors border border-slate-700"
+             >
               <Share2 className="w-5 h-5" /> Share Result
             </button>
+
+            {/* Email Result Button (Mailto) */}
+            <a 
+                href={mailToLink}
+                className="flex items-center justify-center gap-2 w-full bg-slate-800 hover:bg-slate-700 text-white font-semibold py-3 rounded-lg transition-colors border border-slate-700"
+            >
+                <Mail className="w-5 h-5" /> Save Result via Email
+            </a>
 
             {/* UPSELL SECTION */}
             <div className="bg-gradient-to-r from-blue-900/50 to-slate-900 p-4 rounded-xl border border-blue-500/30 mt-4">
@@ -329,12 +437,7 @@ function App() {
             
             <button 
                 onClick={() => {
-                    // Reset gioco
-                    setScore(0);
-                    setCurrentQIndex(0);
-                    // Rimescola le domande
-                    const shuffled = [...REAL_QUESTIONS].sort(() => 0.5 - Math.random());
-                    setGameQuestions(shuffled.slice(0, 20));
+                    initGame();
                     setStep('quiz');
                 }}
                 className="text-slate-500 text-sm hover:text-white mt-2"
